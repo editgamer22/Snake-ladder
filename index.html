@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess-56 Snakes & Ladders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .board-cell {
+            aspect-ratio: 1;
+            position: relative;
+            border: 2px solid rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .board-cell:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .cell-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .ladder-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-top: 4px;
+            box-shadow: 0 2px 4px rgba(34, 197, 94, 0.4);
+        }
+
+        .snake-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-top: 4px;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
+        }
+
+        .arrow-up {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .arrow-down {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .player-token {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: absolute;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 100;
+        }
+
+        .dice-container {
+            perspective: 1000px;
+        }
+
+        .dice {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 1s;
+        }
+
+        .dice.rolling {
+            animation: roll 1s ease-out;
+        }
+
+        @keyframes roll {
+            0% { transform: rotateX(0deg) rotateY(0deg); }
+            25% { transform: rotateX(360deg) rotateY(180deg); }
+            50% { transform: rotateX(540deg) rotateY(360deg); }
+            75% { transform: rotateX(720deg) rotateY(540deg); }
+            100% { transform: rotateX(720deg) rotateY(720deg); }
+        }
+
+        .dice-face {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            padding: 10px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .dice-dot {
+            width: 14px;
+            height: 14px;
+            background: #333;
+            border-radius: 50%;
+            margin: 2px;
+        }
+
+        /* Theme Styles */
+        .theme-classic {
+            background: linear-gradient(135deg, #f5f5dc 0%, #d2b48c 100%);
+        }
+
+        .theme-futuristic {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        }
+
+        .theme-egyptian {
+            background: linear-gradient(135deg, #f4e4c1 0%, #d4af37 100%);
+        }
+
+        .theme-ocean {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .theme-forest {
+            background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .animate-bounce-in {
+            animation: bounceIn 0.6s ease-out;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal active">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 animate-bounce-in">
+            <h1 class="text-3xl font-bold text-center mb-2 text-purple-900">Chess-56</h1>
+            <p class="text-center text-gray-600 mb-6">Snakes & Ladders Division</p>
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-2 text-gray-700">Email (Optional)</label>
+                <input type="email" id="emailInput" placeholder="Enter your email to track scores" 
+                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none">
+            </div>
+            <button onclick="login()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
+                Start Game
+            </button>
+            <button onclick="skipLogin()" class="w-full mt-2 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+                Skip (Guest Mode)
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div id="gameContainer" style="display: none;">
+        
+        <!-- Header -->
+        <header class="bg-black bg-opacity-50 text-white p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Chess-56 Snakes & Ladders</h1>
+                    <p class="text-sm text-gray-300" id="userEmail">Guest Mode</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="showStats()" class="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                        My Stats
+                    </button>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Setup Screen -->
+        <div id="setupScreen" class="container mx-auto p-8">
+            <div class="max-w-4xl mx-auto bg-white bg-opacity-95 rounded-2xl p-8 shadow-2xl">
+                <h2 class="text-3xl font-bold mb-6 text-center text-purple-900">Game Setup</h2>
+                
+                <!-- Board Theme Selection -->
+                <div class="mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Select Board Theme</h3>
+                    <div class="grid grid-cols-5 gap-4">
+                        <button onclick="selectTheme('classic')" class="theme-btn p-4 rounded-lg theme-classic border-4 border-purple-600 transition hover:scale-105">
+                            <p class="font-semibold text-sm">Classic Wooden</p>
+                        </button>
+                        <button onclick="selectTheme('futuristic')" class="theme-btn p-4 rounded-lg theme-futuristic border-4 border-transparent transition hover:scale-105">
+                            <p class="font-semibold text-sm text-white">Futuristic</p>
+                        </button>
+                        <button onclick="selectTheme('egyptian')" class="theme-btn p-4 rounded-lg theme-egyptian border-4 border-transparent transition hover:scale-105">
+                            <p class="font-semibold text-sm">Egyptian</p>
+                        </button>
+                        <button onclick="selectTheme('ocean')" class="theme-btn p-4 rounded-lg theme-ocean border-4 border-transparent transition hover:scale-105">
+                            <p class="font-semibold text-sm text-white">Ocean</p>
+                        </button>
+                        <button onclick="selectTheme('forest')" class="theme-btn p-4 rounded-lg theme-forest border-4 border-transparent transition hover:scale-105">
+                            <p class="font-semibold text-sm text-white">Forest</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Player Configuration -->
+                <div class="mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Configure Players (1-4)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="player-config p-4 border-2 border-gray-300 rounded-lg">
+                            <h4 class="font-semibold mb-2 text-red-600">Player 1 (Red)</h4>
+                            <select id="player1Type" class="w-full p-2 border rounded" onchange="updateAILevel(1)">
+                                <option value="human">Human</option>
+                                <option value="ai">Computer AI</option>
+                                <option value="none">Not Playing</option>
+                            </select>
+                            <select id="player1AI" class="w-full p-2 border rounded mt-2" style="display:none;">
+                                <option value="1">Level 1 - Casual</option>
+                                <option value="2">Level 2 - Standard</option>
+                                <option value="3">Level 3 - Strategic</option>
+                            </select>
+                        </div>
+                        <div class="player-config p-4 border-2 border-gray-300 rounded-lg">
+                            <h4 class="font-semibold mb-2 text-blue-600">Player 2 (Blue)</h4>
+                            <select id="player2Type" class="w-full p-2 border rounded" onchange="updateAILevel(2)">
+                                <option value="human">Human</option>
+                                <option value="ai">Computer AI</option>
+                                <option value="none">Not Playing</option>
+                            </select>
+                            <select id="player2AI" class="w-full p-2 border rounded mt-2" style="display:none;">
+                                <option value="1">Level 1 - Casual</option>
+                                <option value="2">Level 2 - Standard</option>
+                                <option value="3">Level 3 - Strategic</option>
+                            </select>
+                        </div>
+                        <div class="player-config p-4 border-2 border-gray-300 rounded-lg">
+                            <h4 class="font-semibold mb-2 text-green-600">Player 3 (Green)</h4>
+                            <select id="player3Type" class="w-full p-2 border rounded" onchange="updateAILevel(3)">
+                                <option value="none">Not Playing</option>
+                                <option value="human">Human</option>
+                                <option value="ai">Computer AI</option>
+                            </select>
+                            <select id="player3AI" class="w-full p-2 border rounded mt-2" style="display:none;">
+                                <option value="1">Level 1 - Casual</option>
+                                <option value="2">Level 2 - Standard</option>
+                                <option value="3">Level 3 - Strategic</option>
+                            </select>
+                        </div>
+                        <div class="player-config p-4 border-2 border-gray-300 rounded-lg">
+                            <h4 class="font-semibold mb-2 text-yellow-600">Player 4 (Yellow)</h4>
+                            <select id="player4Type" class="w-full p-2 border rounded" onchange="updateAILevel(4)">
+                                <option value="none">Not Playing</option>
+                                <option value="human">Human</option>
+                                <option value="ai">Computer AI</option>
+                            </select>
+                            <select id="player4AI" class="w-full p-2 border rounded mt-2" style="display:none;">
+                                <option value="1">Level 1 - Casual</option>
+                                <option value="2">Level 2 - Standard</option>
+                                <option value="3">Level 3 - Strategic</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="startGame()" class="w-full bg-purple-600 text-white py-4 rounded-lg font-bold text-xl hover:bg-purple-700 transition">
+                    Generate Board & Start Game
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Board Screen -->
+        <div id="gameScreen" style="display: none;" class="container mx-auto p-4">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                
+                <!-- Game Board -->
+                <div class="lg:col-span-3">
+                    <div class="bg-white bg-opacity-95 rounded-2xl p-6 shadow-2xl">
+                        <div class="mb-4 flex justify-between items-center">
+                            <h2 class="text-2xl font-bold text-purple-900">Game Board</h2>
+                            <button onclick="viewConfiguration()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                                View Configuration
+                            </button>
+                        </div>
+                        <div id="boardContainer" class="relative">
+                            <!-- Board will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Controls -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white bg-opacity-95 rounded-2xl p-6 shadow-2xl mb-6">
+                        <h3 class="text-xl font-bold mb-4 text-purple-900">Current Turn</h3>
+                        <div id="currentPlayerDisplay" class="mb-4 p-4 bg-gray-100 rounded-lg text-center">
+                            <p class="font-semibold text-lg">Player 1</p>
+                            <p class="text-sm text-gray-600">Position: 0</p>
+                        </div>
+                        
+                        <div class="dice-container mb-6 flex justify-center">
+                            <div id="dice" class="dice">
+                                <div class="dice-face" style="background: linear-gradient(145deg, #ffffff, #e6e6e6);">
+                                    <div style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                        <div class="dice-dot"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="rollButton" onclick="rollDice()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition mb-4">
+                            Roll Dice
+                        </button>
+
+                        <div id="gameLog" class="bg-gray-100 rounded-lg p-4 h-64 overflow-y-auto">
+                            <p class="text-sm text-gray-600 text-center">Game log will appear here...</p>
+                        </div>
+                    </div>
+
+                    <!-- Players Status -->
+                    <div class="bg-white bg-opacity-95 rounded-2xl p-6 shadow-2xl">
+                        <h3 class="text-xl font-bold mb-4 text-purple-900">Players</h3>
+                        <div id="playersStatus">
+                            <!-- Player status will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 animate-bounce-in">
+            <h2 class="text-3xl font-bold mb-6 text-center text-purple-900">My Statistics</h2>
+            <div id="statsContent" class="space-y-4">
+                <!-- Stats will be displayed here -->
+            </div>
+            <button onclick="closeStats()" class="w-full mt-6 bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div id="configModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-3xl w-full mx-4 animate-bounce-in max-h-screen overflow-y-auto">
+            <h2 class="text-3xl font-bold mb-6 text-center text-purple-900">Board Configuration</h2>
+            <div id="configContent" class="space-y-4">
+                <!-- Configuration will be displayed here -->
+            </div>
+            <button onclick="closeConfig()" class="w-full mt-6 bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="modal">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 animate-bounce-in">
+            <h2 class="text-4xl font-bold mb-4 text-center text-purple-900">🎉 Game Over! 🎉</h2>
+            <div id="winnerContent" class="text-center mb-6">
+                <!-- Winner info will be displayed here -->
+            </div>
+            <button onclick="playAgain()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition mb-2">
+                Play Again
+            </button>
+            <button onclick="backToSetup()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
+                New Game Setup
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            currentUser: null,
+            theme: 'classic',
+            players: [],
+            currentPlayerIndex: 0,
+            ladders: [],
+            snakes: [],
+            boardPositions: {},
+            gameActive: false,
+            diceValue: 1,
+            isRolling: false
+        };
+
+        // Audio Context for sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            if (type === 'roll') {
+                oscillator.frequency.value = 200;
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } else if (type === 'ladder') {
+                oscillator.frequency.value = 400;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                for (let i = 0; i < 5; i++) {
+                    oscillator.frequency.setValueAtTime(400 + i * 100, audioContext.currentTime + i * 0.1);
+                }
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } else if (type === 'snake') {
+                oscillator.frequency.value = 600;
+                oscillator.type = 'sawtooth';
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                for (let i = 0; i < 5; i++) {
+                    oscillator.frequency.setValueAtTime(600 - i * 100, audioContext.currentTime + i * 0.1);
+                }
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            }
+        }
+
+        // Login Functions
+        function login() {
+            const email = document.getElementById('emailInput').value.trim();
+            if (email && !email.includes('@')) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            
+            if (email) {
+                gameState.currentUser = email;
+                initializeUserData(email);
+                document.getElementById('userEmail').textContent = email;
+            } else {
+                skipLogin();
+                return;
+            }
+            
+            document.getElementById('loginModal').classList.remove('active');
+            document.getElementById('gameContainer').style.display = 'block';
+        }
+
+        function skipLogin() {
+            gameState.currentUser = null;
+            document.getElementById('userEmail').textContent = 'Guest Mode';
+            document.getElementById('loginModal').classList.remove('active');
+            document.getElementById('gameContainer').style.display = 'block';
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                location.reload();
+            }
+        }
+
+        // User Data Management
+        function initializeUserData(email) {
+            let userData = localStorage.getItem('chess56_sl_users');
+            let users = userData ? JSON.parse(userData) : {};
+            
+            if (!users[email]) {
+                users[email] = {
+                    created: Date.now(),
+                    stats: {
+                        hvh_wins: 0,
+                        hvh_losses: 0,
+                        hvh_draws: 0,
+                        hvc_wins: 0,
+                        hvc_losses: 0,
+                        total_matches: 0
+                    }
+                };
+                localStorage.setItem('chess56_sl_users', JSON.stringify(users));
+            } else {
+                // Check if data should be deleted (2 months = 60 days)
+                const daysSinceCreation = (Date.now() - users[email].created) / (1000 * 60 * 60 * 24);
+                if (daysSinceCreation > 60) {
+                    users[email].stats = {
+                        hvh_wins: 0,
+                        hvh_losses: 0,
+                        hvh_draws: 0,
+                        hvc_wins: 0,
+                        hvc_losses: 0,
+                        total_matches: 0
+                    };
+                    users[email].created = Date.now();
+                    localStorage.setItem('chess56_sl_users', JSON.stringify(users));
+                }
+            }
+        }
+
+        function updateStats(isVsComputer, won) {
+            if (!gameState.currentUser) return;
+            
+            let userData = localStorage.getItem('chess56_sl_users');
+            let users = JSON.parse(userData);
+            
+            if (isVsComputer) {
+                if (won) {
+                    users[gameState.currentUser].stats.hvc_wins++;
+                } else {
+                    users[gameState.currentUser].stats.hvc_losses++;
+                }
+            } else {
+                if (won) {
+                    users[gameState.currentUser].stats.hvh_wins++;
+                } else {
+                    users[gameState.currentUser].stats.hvh_losses++;
+                }
+            }
+            
+            users[gameState.currentUser].stats.total_matches++;
+            localStorage.setItem('chess56_sl_users', JSON.stringify(users));
+        }
+
+        function showStats() {
+            if (!gameState.currentUser) {
+                document.getElementById('statsContent').innerHTML = `
+                    <p class="text-center text-gray-600">You are in Guest Mode. Login with email to track your statistics.</p>
+                `;
+            } else {
+                let userData = localStorage.getItem('chess56_sl_users');
+                let users = JSON.parse(userData);
+                let stats = users[gameState.currentUser].stats;
+                
+                const daysSinceCreation = Math.floor((Date.now() - users[gameState.currentUser].created) / (1000 * 60 * 60 * 24));
+                const daysUntilReset = 60 - daysSinceCreation;
+                
+                document.getElementById('statsContent').innerHTML = `
+                    <div class="bg-purple-100 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">Human vs Human</h3>
+                        <p>Wins: <span class="font-semibold">${stats.hvh_wins}</span></p>
+                        <p>Losses: <span class="font-semibold">${stats.hvh_losses}</span></p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">Human vs Computer</h3>
+                        <p>Wins: <span class="font-semibold">${stats.hvc_wins}</span></p>
+                        <p>Losses: <span class="font-semibold">${stats.hvc_losses}</span></p>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">Total Statistics</h3>
+                        <p>Total Matches: <span class="font-semibold">${stats.total_matches}</span></p>
+                        <p class="text-sm text-gray-600 mt-2">Data resets in ${daysUntilReset} days</p>
+                    </div>
+                `;
+            }
+            document.getElementById('statsModal').classList.add('active');
+        }
+
+        function closeStats() {
+            document.getElementById('statsModal').classList.remove('active');
+        }
+
+        // Theme Selection
+        function selectTheme(theme) {
+            gameState.theme = theme;
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('border-purple-600');
+                btn.classList.add('border-transparent');
+            });
+            event.target.closest('.theme-btn').classList.remove('border-transparent');
+            event.target.closest('.theme-btn').classList.add('border-purple-600');
+        }
+
+        function updateAILevel(playerNum) {
+            const type = document.getElementById(`player${playerNum}Type`).value;
+            const aiSelect = document.getElementById(`player${playerNum}AI`);
+            if (type === 'ai') {
+                aiSelect.style.display = 'block';
+            } else {
+                aiSelect.style.display = 'none';
+            }
+        }
+
+        // Board Generation
+        function generateBoard() {
+            const ladders = [];
+            const snakes = [];
+            const usedSquares = new Set([1, 100]);
+            
+            // Generate 7 ladders
+            let attempts = 0;
+            while (ladders.length < 7 && attempts < 1000) {
+                attempts++;
+                const bottom = Math.floor(Math.random() * 80) + 2; // 2-81
+                const top = bottom + Math.floor(Math.random() * (100 - bottom - 1)) + 10; // At least 10 squares up
+                
+                if (top <= 99 && !usedSquares.has(bottom) && !usedSquares.has(top)) {
+                    ladders.push([bottom, top]);
+                    usedSquares.add(bottom);
+                    usedSquares.add(top);
+                }
+            }
+            
+            // Generate 7 snakes
+            attempts = 0;
+            while (snakes.length < 7 && attempts < 1000) {
+                attempts++;
+                const head = Math.floor(Math.random() * 80) + 20; // 20-99
+                const tail = Math.floor(Math.random() * (head - 10)) + 2; // At least 10 squares down
+                
+                if (tail >= 2 && !usedSquares.has(head) && !usedSquares.has(tail)) {
+                    snakes.push([head, tail]);
+                    usedSquares.add(head);
+                    usedSquares.add(tail);
+                }
+            }
+            
+            gameState.ladders = ladders;
+            gameState.snakes = snakes;
+            
+            console.log('Board Configuration:');
+            console.log('Ladders:', ladders);
+            console.log('Snakes:', snakes);
+        }
+
+        function renderBoard() {
+            const container = document.getElementById('boardContainer');
+            container.innerHTML = '';
+            
+            const themeClass = `theme-${gameState.theme}`;
+            container.className = `grid grid-cols-10 gap-1 ${themeClass} p-4 rounded-xl relative`;
+            
+            // Calculate cell positions for connections
+            gameState.boardPositions = {};
+            
+            // Create maps for quick lookup
+            const ladderMap = new Map(gameState.ladders);
+            const snakeMap = new Map(gameState.snakes);
+            
+            // Create board cells (100 to 1, snake pattern)
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 10; col++) {
+                    let cellNumber;
+                    if (row % 2 === 0) {
+                        cellNumber = 100 - (row * 10 + col);
+                    } else {
+                        cellNumber = 100 - (row * 10 + (9 - col));
+                    }
+                    
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell bg-white bg-opacity-80 relative';
+                    cell.id = `cell-${cellNumber}`;
+                    
+                    // Build cell content
+                    let cellContent = `<span class="cell-number">${cellNumber}</span>`;
+                    
+                    // Check if this cell has a ladder
+                    if (ladderMap.has(cellNumber)) {
+                        const destination = ladderMap.get(cellNumber);
+                        cellContent += `
+                            <div class="ladder-indicator">
+                                <span class="arrow-up">↑</span>
+                                <span>${destination}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    // Check if this cell has a snake
+                    if (snakeMap.has(cellNumber)) {
+                        const destination = snakeMap.get(cellNumber);
+                        cellContent += `
+                            <div class="snake-indicator">
+                                <span class="arrow-down">↓</span>
+                                <span>${destination}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    cell.innerHTML = cellContent;
+                    
+                    if (cellNumber === 1) {
+                        cell.classList.add('bg-green-200');
+                    } else if (cellNumber === 100) {
+                        cell.classList.add('bg-yellow-200');
+                    }
+                    
+                    container.appendChild(cell);
+                    
+                    // Store position
+                    gameState.boardPositions[cellNumber] = {
+                        x: col,
+                        y: row
+                    };
+                }
+            }
+        }
+
+        function drawConnections() {
+            const container = document.getElementById('boardContainer');
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', '100%');
+            svg.style.position = 'absolute';
+            svg.style.top = '0';
+            svg.style.left = '0';
+            svg.style.pointerEvents = 'none';
+            svg.style.zIndex = '50';
+            
+            const cellSize = container.offsetWidth / 10;
+            
+            // Draw ladders
+            gameState.ladders.forEach(([bottom, top]) => {
+                const bottomPos = gameState.boardPositions[bottom];
+                const topPos = gameState.boardPositions[top];
+                
+                const x1 = (bottomPos.x + 0.5) * cellSize;
+                const y1 = (bottomPos.y + 0.5) * cellSize;
+                const x2 = (topPos.x + 0.5) * cellSize;
+                const y2 = (topPos.y + 0.5) * cellSize;
+                
+                // Draw ladder sides
+                const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path1.setAttribute('d', `M ${x1 - 10} ${y1} Q ${(x1 + x2) / 2 - 10} ${(y1 + y2) / 2} ${x2 - 10} ${y2}`);
+                path1.setAttribute('class', 'ladder-svg');
+                svg.appendChild(path1);
+                
+                const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path2.setAttribute('d', `M ${x1 + 10} ${y1} Q ${(x1 + x2) / 2 + 10} ${(y1 + y2) / 2} ${x2 + 10} ${y2}`);
+                path2.setAttribute('class', 'ladder-svg');
+                svg.appendChild(path2);
+                
+                // Draw rungs
+                for (let i = 0; i <= 5; i++) {
+                    const t = i / 5;
+                    const mx1 = x1 - 10 + t * (x2 - x1);
+                    const my1 = y1 + t * (y2 - y1);
+                    const mx2 = x1 + 10 + t * (x2 - x1);
+                    const my2 = y1 + t * (y2 - y1);
+                    
+                    const rung = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    rung.setAttribute('x1', mx1);
+                    rung.setAttribute('y1', my1);
+                    rung.setAttribute('x2', mx2);
+                    rung.setAttribute('y2', my2);
+                    rung.setAttribute('class', 'ladder-rung');
+                    svg.appendChild(rung);
+                }
+                
+                // Add label
+                const label = document.createElement('div');
+                label.className = 'connection-label bg-green-700';
+                label.textContent = `${bottom}→${top}`;
+                label.style.left = `${x1}px`;
+                label.style.top = `${y1 + 20}px`;
+                container.appendChild(label);
+            });
+            
+            // Draw snakes
+            gameState.snakes.forEach(([head, tail]) => {
+                const headPos = gameState.boardPositions[head];
+                const tailPos = gameState.boardPositions[tail];
+                
+                const x1 = (headPos.x + 0.5) * cellSize;
+                const y1 = (headPos.y + 0.5) * cellSize;
+                const x2 = (tailPos.x + 0.5) * cellSize;
+                const y2 = (tailPos.y + 0.5) * cellSize;
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const controlX = (x1 + x2) / 2 + (Math.random() - 0.5) * 50;
+                const controlY = (y1 + y2) / 2 + (Math.random() - 0.5) * 50;
+                path.setAttribute('d', `M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}`);
+                path.setAttribute('class', 'snake-svg');
+                svg.appendChild(path);
+                
+                // Add label
+                const label = document.createElement('div');
+                label.className = 'connection-label bg-red-700';
+                label.textContent = `${head}→${tail}`;
+                label.style.left = `${x1}px`;
+                label.style.top = `${y1 + 20}px`;
+                container.appendChild(label);
+            });
+            
+            container.appendChild(svg);
+        }
+
+        // Game Start
+        function startGame() {
+            // Validate at least one player
+            const activePlayers = [];
+            const playerColors = ['#ef4444', '#3b82f6', '#22c55e', '#eab308'];
+            const playerNames = ['Red', 'Blue', 'Green', 'Yellow'];
+            
+            for (let i = 1; i <= 4; i++) {
+                const type = document.getElementById(`player${i}Type`).value;
+                if (type !== 'none') {
+                    const player = {
+                        id: i,
+                        name: `Player ${i} (${playerNames[i-1]})`,
+                        type: type,
+                        color: playerColors[i-1],
+                        position: 0,
+                        aiLevel: type === 'ai' ? parseInt(document.getElementById(`player${i}AI`).value) : 0
+                    };
+                    activePlayers.push(player);
+                }
+            }
+            
+            if (activePlayers.length === 0) {
+                alert('Please configure at least one player!');
+                return;
+            }
+            
+            gameState.players = activePlayers;
+            gameState.currentPlayerIndex = 0;
+            gameState.gameActive = true;
+            
+            // Generate board
+            generateBoard();
+            
+            // Switch to game screen
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            
+            // Render board
+            renderBoard();
+            
+            // Update UI
+            updatePlayersStatus();
+            updateCurrentPlayerDisplay();
+            
+            addLog('Game started! Roll the dice to begin.');
+            
+            // If first player is AI, auto-roll
+            if (gameState.players[0].type === 'ai') {
+                setTimeout(() => rollDice(), 1000);
+            }
+        }
+
+        function updatePlayersStatus() {
+            const container = document.getElementById('playersStatus');
+            container.innerHTML = '';
+            
+            gameState.players.forEach((player, index) => {
+                const div = document.createElement('div');
+                div.className = 'mb-3 p-3 rounded-lg ' + (index === gameState.currentPlayerIndex ? 'bg-purple-100 border-2 border-purple-600' : 'bg-gray-100');
+                div.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-6 h-6 rounded-full mr-2" style="background: ${player.color};"></div>
+                        <div>
+                            <p class="font-semibold">${player.name}</p>
+                            <p class="text-sm text-gray-600">Position: ${player.position}</p>
+                            <p class="text-xs text-gray-500">${player.type === 'ai' ? `AI Level ${player.aiLevel}` : 'Human'}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateCurrentPlayerDisplay() {
+            const player = gameState.players[gameState.currentPlayerIndex];
+            document.getElementById('currentPlayerDisplay').innerHTML = `
+                <div class="w-12 h-12 rounded-full mx-auto mb-2" style="background: ${player.color};"></div>
+                <p class="font-semibold text-lg">${player.name}</p>
+                <p class="text-sm text-gray-600">Position: ${player.position}</p>
+            `;
+            
+            // Update button state
+            const rollButton = document.getElementById('rollButton');
+            if (player.type === 'ai') {
+                rollButton.disabled = true;
+                rollButton.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                rollButton.disabled = false;
+                rollButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Dice Rolling
+        function rollDice() {
+            if (gameState.isRolling || !gameState.gameActive) return;
+            
+            const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+            gameState.isRolling = true;
+            
+            // Animate dice
+            const dice = document.getElementById('dice');
+            dice.classList.add('rolling');
+            playSound('roll');
+            
+            setTimeout(() => {
+                const roll = Math.floor(Math.random() * 6) + 1;
+                gameState.diceValue = roll;
+                
+                dice.classList.remove('rolling');
+                updateDiceFace(roll);
+                
+                addLog(`${currentPlayer.name} rolled a ${roll}`);
+                
+                // Move player
+                setTimeout(() => {
+                    movePlayer(currentPlayer, roll);
+                }, 500);
+                
+            }, 1000);
+        }
+
+        function updateDiceFace(value) {
+            const dice = document.getElementById('dice');
+            const dotPatterns = {
+                1: [[1, 1, 1]],
+                2: [[1, 0, 0], [0, 0, 1]],
+                3: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                4: [[1, 0, 1], [0, 0, 0], [1, 0, 1]],
+                5: [[1, 0, 1], [0, 1, 0], [1, 0, 1]],
+                6: [[1, 0, 1], [1, 0, 1], [1, 0, 1]]
+            };
+            
+            let html = '<div class="dice-face" style="background: linear-gradient(145deg, #ffffff, #e6e6e6);"><div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; width: 100%; height: 100%; padding: 10px;">';
+            
+            dotPatterns[value].forEach(row => {
+                row.forEach(dot => {
+                    if (dot) {
+                        html += '<div class="dice-dot"></div>';
+                    } else {
+                        html += '<div></div>';
+                    }
+                });
+            });
+            
+            html += '</div></div>';
+            dice.innerHTML = html;
+        }
+
+        function movePlayer(player, steps) {
+            let newPosition = player.position + steps;
+            
+            // Handle bounce back from 100
+            if (newPosition > 100) {
+                newPosition = 100 - (newPosition - 100);
+                addLog(`${player.name} bounced back to ${newPosition}`);
+            }
+            
+            // Animate movement
+            animatePlayerMovement(player, player.position, newPosition);
+            
+            player.position = newPosition;
+            
+            // Check for win
+            if (newPosition === 100) {
+                setTimeout(() => {
+                    endGame(player);
+                }, 1000);
+                return;
+            }
+            
+            // Check for snakes and ladders
+            setTimeout(() => {
+                checkSnakesAndLadders(player);
+            }, 800);
+        }
+
+        function animatePlayerMovement(player, from, to) {
+            // Remove old token
+            const oldToken = document.getElementById(`token-player-${player.id}`);
+            if (oldToken) oldToken.remove();
+            
+            // Create new token
+            const cell = document.getElementById(`cell-${to}`);
+            const token = document.createElement('div');
+            token.id = `token-player-${player.id}`;
+            token.className = 'player-token';
+            token.style.background = player.color;
+            
+            // Position token (handle multiple tokens on same square)
+            const existingTokens = cell.querySelectorAll('.player-token');
+            const offset = existingTokens.length * 8;
+            token.style.left = `${35 + offset}%`;
+            token.style.top = `${35 + offset}%`;
+            
+            cell.appendChild(token);
+        }
+
+        function checkSnakesAndLadders(player) {
+            // Check ladders
+            for (let [bottom, top] of gameState.ladders) {
+                if (player.position === bottom) {
+                    addLog(`${player.name} climbed a ladder from ${bottom} to ${top}! 🪜`);
+                    playSound('ladder');
+                    player.position = top;
+                    animatePlayerMovement(player, bottom, top);
+                    
+                    if (top === 100) {
+                        setTimeout(() => endGame(player), 1000);
+                        return;
+                    }
+                    
+                    setTimeout(() => nextTurn(), 1000);
+                    return;
+                }
+            }
+            
+            // Check snakes
+            for (let [head, tail] of gameState.snakes) {
+                if (player.position === head) {
+                    addLog(`${player.name} was bitten by a snake from ${head} to ${tail}! 🐍`);
+                    playSound('snake');
+                    player.position = tail;
+                    animatePlayerMovement(player, head, tail);
+                    setTimeout(() => nextTurn(), 1000);
+                    return;
+                }
+            }
+            
+            // No snake or ladder
+            setTimeout(() => nextTurn(), 500);
+        }
+
+        function nextTurn() {
+            gameState.isRolling = false;
+            gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+            updatePlayersStatus();
+            updateCurrentPlayerDisplay();
+            
+            // If next player is AI, auto-roll
+            const nextPlayer = gameState.players[gameState.currentPlayerIndex];
+            if (nextPlayer.type === 'ai') {
+                setTimeout(() => {
+                    aiTurn(nextPlayer);
+                }, 1500);
+            }
+        }
+
+        function aiTurn(player) {
+            // Different AI levels
+            if (player.aiLevel === 1) {
+                // Level 1: Just roll
+                rollDice();
+            } else if (player.aiLevel === 2) {
+                // Level 2: Same as level 1 (in single-token game)
+                rollDice();
+            } else if (player.aiLevel === 3) {
+                // Level 3: Consider probabilities
+                // For demonstration, just add a thinking delay
+                addLog(`${player.name} is thinking strategically...`);
+                setTimeout(() => rollDice(), 800);
+            }
+        }
+
+        function endGame(winner) {
+            gameState.gameActive = false;
+            
+            // Determine if it's vs computer
+            const hasComputer = gameState.players.some(p => p.type === 'ai');
+            const hasMultipleHumans = gameState.players.filter(p => p.type === 'human').length > 1;
+            
+            // Update stats if logged in
+            if (gameState.currentUser && winner.type === 'human') {
+                updateStats(hasComputer, true);
+            } else if (gameState.currentUser && winner.type === 'ai') {
+                updateStats(true, false);
+            }
+            
+            // Show winner modal
+            document.getElementById('winnerContent').innerHTML = `
+                <div class="w-24 h-24 rounded-full mx-auto mb-4" style="background: ${winner.color};"></div>
+                <h3 class="text-2xl font-bold mb-2">${winner.name} Wins!</h3>
+                <p class="text-gray-600">Congratulations! 🎊</p>
+            `;
+            document.getElementById('winnerModal').classList.add('active');
+        }
+
+        function playAgain() {
+            document.getElementById('winnerModal').classList.remove('active');
+            
+            // Reset player positions
+            gameState.players.forEach(player => {
+                player.position = 0;
+                const token = document.getElementById(`token-player-${player.id}`);
+                if (token) token.remove();
+            });
+            
+            gameState.currentPlayerIndex = 0;
+            gameState.gameActive = true;
+            
+            // Generate new board
+            generateBoard();
+            renderBoard();
+            
+            updatePlayersStatus();
+            updateCurrentPlayerDisplay();
+            
+            document.getElementById('gameLog').innerHTML = '<p class="text-sm text-gray-600">New game started!</p>';
+            
+            // If first player is AI, auto-roll
+            if (gameState.players[0].type === 'ai') {
+                setTimeout(() => rollDice(), 1000);
+            }
+        }
+
+        function backToSetup() {
+            document.getElementById('winnerModal').classList.remove('active');
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('setupScreen').style.display = 'block';
+            gameState.gameActive = false;
+        }
+
+        function addLog(message) {
+            const log = document.getElementById('gameLog');
+            const entry = document.createElement('div');
+            entry.className = 'mb-2 p-2 bg-white rounded text-sm';
+            entry.textContent = message;
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        function viewConfiguration() {
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+            
+            html += '<div class="bg-green-50 p-4 rounded-lg border-2 border-green-500"><h3 class="font-bold text-lg mb-3 text-green-700">🪜 Ladders (Climb Up)</h3>';
+            gameState.ladders.forEach(([bottom, top]) => {
+                html += `<p class="mb-1"><span class="font-semibold">${bottom}</span> → <span class="font-semibold">${top}</span> (+${top - bottom})</p>`;
+            });
+            html += '</div>';
+            
+            html += '<div class="bg-red-50 p-4 rounded-lg border-2 border-red-500"><h3 class="font-bold text-lg mb-3 text-red-700">🐍 Snakes (Slide Down)</h3>';
+            gameState.snakes.forEach(([head, tail]) => {
+                html += `<p class="mb-1"><span class="font-semibold">${head}</span> → <span class="font-semibold">${tail}</span> (-${head - tail})</p>`;
+            });
+            html += '</div>';
+            
+            html += '</div>';
+            
+            html += '<div class="mt-4 p-4 bg-gray-100 rounded-lg"><h3 class="font-bold mb-2">Data Structure (Console Format)</h3>';
+            html += `<pre class="text-xs overflow-x-auto">Ladders: ${JSON.stringify(gameState.ladders)}\n\nSnakes: ${JSON.stringify(gameState.snakes)}</pre></div>`;
+            
+            document.getElementById('configContent').innerHTML = html;
+            document.getElementById('configModal').classList.add('active');
+        }
+
+        function closeConfig() {
+            document.getElementById('configModal').classList.remove('active');
+        }
+
+        // Initialize dice display
+        updateDiceFace(1);
+    </script>
+</body>
+</html>
